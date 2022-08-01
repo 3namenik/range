@@ -1,0 +1,176 @@
+<link rel="stylesheet" href="/style.css">
+<div style="padding: 100px">
+
+    <div class="range">
+        <input type="range">
+        <div class="range__container">
+            <div class="range__line">
+                <div class="range__controller"></div>
+            </div>
+            <div class="range__number">
+                1
+            </div>
+            <div class="range__number">
+                5
+            </div>
+            <div class="range__number">
+                10
+            </div>
+            <div class="range__number">
+                20
+            </div>
+            <div class="range__number">
+                50
+            </div>
+            <div class="range__number">
+                100
+            </div>
+            <div class="range__number">
+                300
+            </div>
+            <div class="range__number">
+                500
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    class Range {
+        constructor(node){
+            /* определяем свойства */
+            this.node = node
+            this.controller = node.querySelector('.range__controller');
+            this.offsetLeft = node.offsetLeft;
+
+            
+            this.input = this.node.querySelector('[type=range]');
+            
+            this.input.minPX = 0;
+            this.input.maxPX = this.node.querySelector('.range__line').offsetWidth - this.controller.offsetWidth;
+            
+            /* Расположение подписей */
+            this.list_values = [];
+            this.segments = [];
+            this.node.querySelectorAll('.range__number').forEach((item, index) => {
+                if (index != 0){
+                    this.segments.push({
+                        key: index,
+                        min: +this.list_values[index -1].value,
+                        minPX: this.list_values[index -1].posPX,
+                        max: +item.innerText,
+                        maxPX:item.offsetLeft - 1
+                    });
+                }
+                this.list_values.push({
+                    posPX: item.offsetLeft,
+                    node: item,
+                    value: +item.innerText
+                });
+
+            })
+
+            console.log(this.segments);
+
+            this.input.min = this.list_values[0].value;
+            this.input.max = this.list_values[this.list_values.length - 1].value;
+            
+
+            
+            console.log(this.list_values);
+            
+            /* ползунок */
+            this.controller.onmousedown = (e) => { this._event_move(e) };
+            this.controller.ontouchstart = (e) => { this._event_move(e) };
+
+            this.controller.ondragstart = () => {
+                return false;
+            };
+
+            this.node.querySelector('.range__line').addEventListener('click', evt => {
+                if(evt.target != this.controller){
+                    this._moveAt(evt);
+                }
+            })
+            
+        }
+
+        _event_move(e){
+            let coords = this._getCoords(this.controller);
+
+            this._moveAt(e);
+
+            document.ontouchmove = e => {
+                this._moveAt(e);
+            };
+            document.onmousemove = e => {
+                this._moveAt(e);
+            };
+
+            document.ontouchend = () => {
+                document.ontouchmove = null;
+                this.controller.ontouchend = null;
+            }
+
+            document.onmouseup = () => {
+                document.onmousemove = null;
+                this.controller.onmouseup = null;
+            }
+
+            this.controller.ontouchend = () => {
+                document.ontouchmove = null;
+                this.controller.ontouchend = null;
+            };
+
+            this.controller.onmouseup = () => {
+                document.onmousemove = null;
+                this.controller.onmouseup = null;
+            };
+        }
+
+        _getCoords(elem) {   // кроме IE8-
+            let box = elem.getBoundingClientRect();
+            return {
+                /* top: box.top + pageYOffset, */
+                left: box.left + pageXOffset
+            };
+        }
+
+        _moveAt(e) {
+            let left = e.pageX - this.offsetLeft - this.controller.offsetWidth;
+            if (left < 0) {
+                left = 0;
+            } else {
+                if (left > this.node.querySelector('.range__line').offsetWidth - this.controller.offsetWidth){
+                    left = this.node.querySelector('.range__line').offsetWidth - this.controller.offsetWidth;
+                }
+            }
+            this.controller.style.left = left + 'px';
+
+            /* расчет значения */            
+            this.calculate(left);
+        }
+
+        calculate (val){
+            for (let segment of this.segments) { 
+                if (val >= segment.minPX && val <= segment.maxPX) {
+                    if (val == 0) {
+                        this.input = 0;
+                    } else {
+                        if(val == segment.maxPX - this.controller.offsetWidth) {
+                            this.input = segment.max;
+                        } else {
+                            let lengthPX = segment.maxPX - segment.minPX;
+                            let relPosPolz = val - segment.minPX //отностителное положение ползунка в сегменте
+                            let relVal = segment.max - segment.min; //возможножные значения для сегмета (с вычетом)
+                            this.input = Math.round(relPosPolz / (lengthPX / 100) * relVal / 100 + segment.min);
+                        }
+                    }
+                    console.log(val, this.input);
+                }
+            }
+        }
+    }
+
+    window.range = new Range(document.querySelector('.range'));
+</script>
